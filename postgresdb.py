@@ -17,7 +17,7 @@ def execute_query(query):
     with psycopg.connect(
         host="localhost",
         port=5432,
-        dbname="postgres",
+        dbname="chatbot_db",
         user="postgres"
     ) as conn:
 
@@ -39,17 +39,25 @@ def execute_query(query):
 
 
 
-# Retrieve database table schema information
+#result=execute_query('SELECT * FROM orders;')
+#print(result)
 #
-# This function queries PostgreSQL metadata tables
-# to understand the structure of a database table.
-#
-# Schema information is provided to the LLM so it can
-# generate SQL queries based on available columns.
+
+#--------------------------------------------------------
+# 
+# SELECT 
+#    column_name,
+#    data_type,
+#    is_nullable
+#FROM information_schema.columns
+#WHERE table_name = 'orders'; 
+# 
+# -------------------------------------------------------
+
 def get_schema(table_name):
 
-    # Query PostgreSQL information_schema
-    # to fetch column names and data types
+#    # Query PostgreSQL information_schema
+#    # to fetch column names and data types
     query = f"""
         SELECT column_name, data_type
         FROM information_schema.columns
@@ -58,14 +66,14 @@ def get_schema(table_name):
             AND table_name = '{table_name}'
     """
 
-    # Execute schema query
+#    # Execute schema query
     schema = execute_query(query)
-
-    # Return table schema details
+#
+#    # Return table schema details
     return schema
-
-
-
-# Example usage:
-# result = get_schema("orders")
-# print(result)
+#
+#
+#
+## Example usage:
+#result = get_schema("orders")
+#print(result)

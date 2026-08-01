@@ -1,89 +1,114 @@
 # Import required libraries
-from google import genai
+##https://www.youtube.com/watch?v=Qp30nYYFvM0
+
 from dotenv import load_dotenv
-from google.genai import types
+from openai import OpenAI
 import json
+import os
+# Import database helper functions
+from postgresdb import execute_query,get_schema
 from pydantic import BaseModel
 
-# Import database helper functions
-from postgresdb import execute_query, get_schema
 
-
-# Load environment variables from .env file
-# This keeps sensitive information like API keys outside the source code
+# Load environment variables
 load_dotenv()
 
+openai_key = os.getenv("OPENAI_API_KEY")
 
-# Define the expected structure of the LLM response
-# Using Pydantic helps validate and enforce a consistent response format
+#if openai_key:
+#    print(" OpenAI API key loaded successfully")
+#    print("Key starts with:", openai_key[:8] + "...")
+#else:
+#    print("OPENAI_API_KEY not found")
+
+
+# ----------------------------------------------
 class QueryResult(BaseModel):
     sql: str
     question: str
 
+# ----------------------------------------------
 
-# Initialize Gemini API client
-# API credentials are automatically loaded from environment variables
-client = genai.Client()
-
-
-# Retrieve database schema information
-# Providing schema context helps the LLM generate accurate SQL queries
 schema = get_schema("orders")
-
-
-# Continuous interaction loop
-# Allows users to ask multiple questions until they choose to exit
+# ----------------------------------------------
 while True:
-
-    # Capture user's natural language question
-    user_input = input("enter your question: ")
-
-    # Exit the application when user enters 'exit'
-    if user_input == 'exit':
+    #user_question = "top 5 customers"
+    #user_question = "top 5 product"
+    #user_question = "top 5 product based on number of orders"
+    user_question = input("Enter your question (or type 'exit' to quit): ")
+    if user_question.lower() == 'exit':
         break
-
     else:
-        # Create prompt containing:
-        # 1. User's business question
-        # 2. Database schema context
+        #prompt = f"""
+        #You are a SQL expert.
         #
-        # Schema grounding improves SQL generation accuracy
+        #Generate a SQL query for this user question:
+        #
+        #{user_question}
+        #
+        #Use this database schema:
+        #
+        #orders(
+        #  order_id,
+        #    customer_id,
+        #    customer_name,
+        #    product_name,
+        #    quantity,
+        #    order_date,
+        #    status,
+        #    total_amount,
+        #    payment_status,
+        #    shipping_address,
+        #    created_at,
+        #    price
+        #)
+        #
+        #Return only the SQL query and the original question.
+        #"""
+    
+    
         prompt = f"""
-        Write a SQL query based on the question below:
-
-        User Question:
-        {user_input}
-
-        Use the following orders table schema:
+        You are a SQL expert.
+    
+        Generate a SQL query for this user question:
+    
+        {user_question}
+    
+        Use this database schema:
+    
         {schema}
-        """
-
-
-        # Send prompt to Gemini model
-        #
-        # response_mime_type ensures structured JSON output
-        # response_schema enforces the expected response format
-        response = client.models.generate_content(
-            model='gemini-3.5-flash',
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type='application/json',
-                response_schema=QueryResult
-            )
         )
-
-
-        # Convert Gemini JSON response into Python dictionary
-        json_response = json.loads(response.text)
-
-
-        # Extract generated SQL query from LLM response
-        final_sql = json_response['sql']
-
-
-        # Execute generated SQL query against PostgreSQL database
+    
+        Return only the SQL query and the original question.
+        """
+    
+    
+        #-----------------------------------------------
+    
+        # Create OpenAI client
+        client = OpenAI(api_key=openai_key)
+    
+    
+        response = client.beta.chat.completions.parse(
+            model="gpt-4.1-mini",
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            response_format=QueryResult
+        )
+    
+    
+        result = response.choices[0].message.parsed
+    
+        #print("Question:", result.question)
+    
+        final_sql = result.sql.replace("\\n", "\n")
         final_result = execute_query(final_sql)
-
-
-        # Display query result to user
-        print(final_result)
+    
+        print(f"prompt:{prompt}")
+        print(f"schema:{schema}")
+        print(f"SQL:{final_sql}")
+        print(f"final_result:{final_result}")
