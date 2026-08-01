@@ -1,5 +1,4 @@
 # Import required libraries
-##https://www.youtube.com/watch?v=Qp30nYYFvM0
 
 from dotenv import load_dotenv
 from openai import OpenAI
